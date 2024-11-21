@@ -1,0 +1,717 @@
+import sys
+import wx
+import sqlite3
+import xlrd  # xlrd模块版本不能过高，执行pip install xlrd==1.2.0
+import xlwt
+
+class Register(wx.Frame):
+    def __init__(self):
+        super().__init__(None, title="注册", size=(300, 220))
+
+        self.panel = wx.Panel(self)
+
+        # 创建文本插入框和按钮
+        self.user = wx.TextCtrl(self.panel)
+        self.password1 = wx.TextCtrl(self.panel, style=wx.TE_PASSWORD)
+        self.password2 = wx.TextCtrl(self.panel, style=wx.TE_PASSWORD)
+        self.register_btn = wx.Button(self.panel, label="注册")
+        self.close_btn = wx.Button(self.panel, label="返回")
+
+        # 绑定按钮的点击事件
+        self.register_btn.Bind(wx.EVT_BUTTON, self.on_register)
+        self.close_btn.Bind(wx.EVT_BUTTON, self.on_close)
+
+        # 创建布局管理器，并将控件添加到布局中
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(wx.StaticText(self.panel, label="用户名:"), flag=wx.EXPAND)
+        sizer.Add(self.user, flag=wx.EXPAND)
+        sizer.Add(wx.StaticText(self.panel, label="密码:"), flag=wx.EXPAND, )
+        sizer.Add(self.password1, flag=wx.EXPAND)
+        sizer.Add(wx.StaticText(self.panel, label="确认密码:"), flag=wx.EXPAND, )
+        sizer.Add(self.password2, flag=wx.EXPAND)
+        sizer.Add(self.register_btn, flag=wx.EXPAND)
+        sizer.Add(self.close_btn, flag=wx.EXPAND)
+        self.panel.SetSizer(sizer)
+
+        # 连接数据库并创建数据表
+        self.conn = sqlite3.connect('data1.db')
+        self.cursor = self.conn.cursor()
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS register (user TEXT, password TEXT)')
+        self.SetPosition((650, 300))
+
+    def on_register(self, event):
+        user = self.user.GetValue()
+        password1 = self.password1.GetValue()
+        password2 = self.password2.GetValue()
+        self.cursor.execute('SELECT * FROM register WHERE user=?', (user,))
+        old_user = self.cursor.fetchone()
+        # self.cursor.execute('SELECT * FROM register WHERE password=?', (password,))
+        # old_password = self.cursor.fetchone()
+        if user and password1 and password2:
+            if password1 == password2:
+                if old_user is None:
+                    # 向数据库插入数据
+                    self.cursor.execute('INSERT INTO register (user, password) VALUES (?, ?)', (user, password1))
+                    self.conn.commit()
+                    wx.MessageBox("创建用户成功", "提示", wx.OK | wx.ICON_INFORMATION)
+                else:
+                    wx.MessageBox('用户已经创建!', '错误', wx.OK | wx.ICON_ERROR)
+            else:
+                wx.MessageBox('两次输入的密码不一致!', '错误', wx.OK | wx.ICON_ERROR)
+        else:
+            wx.MessageBox('创建的用户和密码不能为空!', '错误', wx.OK | wx.ICON_ERROR)
+        # 清空插入框中的数据
+        self.user.Clear()
+        self.password1.Clear()
+        self.password2.Clear()
+
+    def on_close(self, event):
+        # sys.exit()
+        register.Hide()
+        login.Show()
+
+class LoginWindow(wx.Frame):
+    def __init__(self, parent, id):
+        wx.Frame.__init__(self, parent, id, title='用户登录', size=(300, 200))
+
+        self.panel = wx.Panel(self)
+
+        # 创建文本插入框和按钮
+        self.user = wx.TextCtrl(self.panel)
+        self.password = wx.TextCtrl(self.panel, style=wx.TE_PASSWORD)
+        self.login_btn = wx.Button(self.panel, label="登录")
+        self.register_btn = wx.Button(self.panel, label="注册")
+        self.close_btn = wx.Button(self.panel, label="退出")
+
+        # 绑定按钮的点击事件
+        self.login_btn.Bind(wx.EVT_BUTTON, self.on_login)
+        self.register_btn.Bind(wx.EVT_BUTTON, self.on_register)
+        self.close_btn.Bind(wx.EVT_BUTTON, self.on_close)
+
+        # 创建布局管理器，并将控件添加到布局中
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(wx.StaticText(self.panel, label="用户名:"), flag=wx.EXPAND)
+        sizer.Add(self.user, flag=wx.EXPAND)
+        sizer.Add(wx.StaticText(self.panel, label="密码:"), flag=wx.EXPAND)
+        sizer.Add(self.password, flag=wx.EXPAND)
+        sizer.Add(self.login_btn, flag=wx.EXPAND)
+        sizer.Add(self.register_btn, flag=wx.EXPAND)
+        sizer.Add(self.close_btn, flag=wx.EXPAND)
+        self.panel.SetSizer(sizer)
+
+        # 连接数据库并创建数据表
+        self.conn = sqlite3.connect('data1.db')
+        self.cursor = self.conn.cursor()
+        # self.cursor.execute('CREATE TABLE IF NOT EXISTS register (user TEXT, password TEXT)')
+        self.SetPosition((650, 300))
+        self.Show()
+
+    def on_login(self, event):
+        # 获取文本插入框中的数据
+        user = self.user.GetValue()
+        password = self.password.GetValue()
+
+        if user and password:
+            # 查询数据
+            self.cursor.execute('SELECT * FROM register WHERE user=? AND password=?', (user, password))
+            users = self.cursor.fetchone()
+            # 清空插入框中的数据
+            self.user.Clear()
+            self.password.Clear()
+            if users:
+                wx.MessageBox('登录成功!', '提示', wx.OK | wx.ICON_INFORMATION)
+                login.Hide()  # 隐藏登录界面
+                frame.Show()  # 显示主界面
+            else:
+                wx.MessageBox('没有这样的账号和密码!', '错误', wx.OK | wx.ICON_ERROR)
+        else:
+            wx.MessageBox('账号和密码不能为空!', "错误", wx.OK | wx.ICON_ERROR)
+
+    def on_register(self, event):
+        register.Show()
+        login.Hide()
+
+    def on_close(self, event):
+        sys.exit()
+        # login.Hide()
+
+class MyFrame(wx.Frame):
+    def __init__(self):
+        super().__init__(None, title="项目", size=(680, 800))
+
+        self.panel = wx.Panel(self)
+
+        # 创建文本插入框和按钮
+        self.stu_id_text_ctrl = wx.TextCtrl(self.panel)
+        self.stu_class_text_ctrl = wx.TextCtrl(self.panel)
+        self.college_text_ctrl = wx.TextCtrl(self.panel)
+        self.stu_name_text_ctrl = wx.TextCtrl(self.panel)
+        self.peace_score_text_ctrl = wx.TextCtrl(self.panel)
+        self.end_score_text_ctrl = wx.TextCtrl(self.panel)
+        self.each_score_text_ctrl = wx.TextCtrl(self.panel)
+
+        self.insert_btn = wx.Button(self.panel, label="添加信息")
+        # self.exit_btn = wx.Button(self.panel, label="返回主菜单")
+
+        # 创建显示数据的列表框
+        self.list_ctrl = wx.ListCtrl(self.panel, style=wx.LC_REPORT)
+
+        # self.list_ctrl.InsertColumn(0, "序号")
+
+        self.list_ctrl.InsertColumn(0, "学号")
+        self.list_ctrl.InsertColumn(1, "班级")
+        self.list_ctrl.InsertColumn(2, "学院")
+        self.list_ctrl.InsertColumn(3, "姓名")
+        self.list_ctrl.InsertColumn(4, "平时成绩")
+        self.list_ctrl.InsertColumn(5, "期末成绩")
+        self.list_ctrl.InsertColumn(6, "互评成绩")
+        self.list_ctrl.InsertColumn(7, "最后成绩")
+
+        # 绑定按钮的点击事件
+        self.insert_btn.Bind(wx.EVT_BUTTON, self.on_add)
+        # self.exit_btn.Bind(wx.EVT_BUTTON, self.on_exit)
+
+        # 创建布局管理器，并将控件添加到布局中
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(wx.StaticText(self.panel, label="学号:"), flag=wx.EXPAND)
+        sizer.Add(self.stu_id_text_ctrl, flag=wx.EXPAND)
+        sizer.Add(wx.StaticText(self.panel, label="班级:"), flag=wx.EXPAND)
+        sizer.Add(self.stu_class_text_ctrl, flag=wx.EXPAND)
+        sizer.Add(wx.StaticText(self.panel, label="学院:"), flag=wx.EXPAND)
+        sizer.Add(self.college_text_ctrl, flag=wx.EXPAND)
+        sizer.Add(wx.StaticText(self.panel, label="姓名:"), flag=wx.EXPAND)
+        sizer.Add(self.stu_name_text_ctrl, flag=wx.EXPAND)
+        sizer.Add(wx.StaticText(self.panel, label="平时成绩:"), flag=wx.EXPAND)
+        sizer.Add(self.peace_score_text_ctrl, flag=wx.EXPAND)
+        sizer.Add(wx.StaticText(self.panel, label="期末成绩:"), flag=wx.EXPAND)
+        sizer.Add(self.end_score_text_ctrl, flag=wx.EXPAND)
+        sizer.Add(wx.StaticText(self.panel, label="互评成绩:"), flag=wx.EXPAND)
+        sizer.Add(self.each_score_text_ctrl, flag=wx.EXPAND)
+        sizer.Add(self.insert_btn, flag=wx.EXPAND)
+        # sizer.Add(self.exit_btn, flag=wx.EXPAND)
+        sizer.Add(self.list_ctrl, 1, wx.EXPAND | wx.ALL, 5)
+        self.panel.SetSizer(sizer)
+
+        # 创建删除和查找的文本插入框和按钮
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.delete_text_ctrl = wx.TextCtrl(self.panel)
+        hbox.Add(self.delete_text_ctrl, 0, wx.EXPAND | wx.ALL, 5)
+
+        delete_button = wx.Button(self.panel, label="删除")
+        delete_button.Bind(wx.EVT_BUTTON, self.on_delete)
+        hbox.Add(delete_button, 0, wx.EXPAND | wx.ALL, 5)
+
+        self.find_text_ctrl = wx.TextCtrl(self.panel)
+        hbox.Add(self.find_text_ctrl, 0, wx.EXPAND | wx.ALL, 5)
+
+        find_button = wx.Button(self.panel, label="查找")
+        find_button.Bind(wx.EVT_BUTTON, self.on_find)
+        hbox.Add(find_button, 0, wx.EXPAND | wx.ALL, 5)
+
+        refresh_button = wx.Button(self.panel, label="刷新")
+        refresh_button.Bind(wx.EVT_BUTTON, self.on_refresh)
+        hbox.Add(refresh_button, 0, wx.EXPAND | wx.ALL, 5)
+
+        import_button = wx.Button(self.panel, label="导入")
+        import_button.Bind(wx.EVT_BUTTON, self.on_import)
+        hbox.Add(import_button, 0, wx.EXPAND | wx.ALL, 5)
+
+        export_button = wx.Button(self.panel, label="导出")
+        export_button.Bind(wx.EVT_BUTTON, self.on_export)
+        hbox.Add(export_button, 0, wx.EXPAND | wx.ALL, 5)
+
+        self.modify_button1 = wx.Button(self.panel, label="修改学生学号")
+        self.modify_button1.Bind(wx.EVT_BUTTON, self.on_modify1)
+        sizer.Add(self.modify_button1, 0, wx.EXPAND)
+
+        self.modify_button2 = wx.Button(self.panel, label="修改学生班级")
+        self.modify_button2.Bind(wx.EVT_BUTTON, self.on_modify2)
+        sizer.Add(self.modify_button2, 0, wx.EXPAND)
+
+        self.modify_button3 = wx.Button(self.panel, label="修改学生学院")
+        self.modify_button3.Bind(wx.EVT_BUTTON, self.on_modify3)
+        sizer.Add(self.modify_button3, 0, wx.EXPAND)
+
+        self.modify_button4 = wx.Button(self.panel, label="修改学生姓名")
+        self.modify_button4.Bind(wx.EVT_BUTTON, self.on_modify4)
+        sizer.Add(self.modify_button4, 0, wx.EXPAND)
+
+        self.modify_button5 = wx.Button(self.panel, label="修改学生平时成绩")
+        self.modify_button5.Bind(wx.EVT_BUTTON, self.on_modify5)
+        sizer.Add(self.modify_button5, 0, wx.EXPAND)
+
+        self.modify_button6 = wx.Button(self.panel, label="修改学生期末成绩")
+        self.modify_button6.Bind(wx.EVT_BUTTON, self.on_modify6)
+        sizer.Add(self.modify_button6, 0, wx.EXPAND)
+
+        self.modify_button7 = wx.Button(self.panel, label="修改学生互评成绩")
+        self.modify_button7.Bind(wx.EVT_BUTTON, self.on_modify7)
+        sizer.Add(self.modify_button7, 0, wx.EXPAND)
+
+        sizer.Add(hbox)
+        self.panel.SetSizer(sizer)
+
+        # 连接数据库并创建数据表
+        self.conn = sqlite3.connect('data1.db')
+        self.cursor = self.conn.cursor()
+        self.cursor.execute(
+            'CREATE TABLE IF NOT EXISTS test6 (stu_id TEXT, stu_class TEXT, college TEXT, stu_name TEXT, peace_score TEXT, end_score TEXT, each_score TEXT, last TEXT)')
+        self.conn.commit()
+
+        # 显示数据库中的数据
+        self.show_data()
+        self.SetPosition((400, 30))
+
+    def on_add(self, event):
+        # 获取文本插入框中的数据
+        stu_id = self.stu_id_text_ctrl.GetValue()
+        stu_class = self.stu_class_text_ctrl.GetValue()
+        college = self.college_text_ctrl.GetValue()
+        stu_name = self.stu_name_text_ctrl.GetValue()
+        peace_score = self.peace_score_text_ctrl.GetValue()
+        end_score = self.end_score_text_ctrl.GetValue()
+        each_score = self.each_score_text_ctrl.GetValue()
+
+        old_stu_ids = []
+        self.cursor.execute("SELECT stu_id FROM test6 WHERE stu_id=?", (stu_id,))
+        old_stu_id = self.cursor.fetchone()
+        if stu_id != '':
+            if stu_class != '' and college != '' and stu_name != '' and peace_score != '' and end_score != '' and each_score != '':
+                if float(peace_score) >= 0 and float(peace_score) <= 100 and float(end_score) >= 0 and float(end_score) <= 100 and float(
+                        each_score) >= 0 and float(each_score) <= 100:
+                    if old_stu_id:
+                        old_stu_ids.append(old_stu_id)
+                        wx.MessageBox("学号重复，请重新设置", "错误", wx.OK)
+                    else:
+                        last = float(peace_score)*0.2+float(each_score)*0.2+float(end_score)*0.6
+                        if float(stu_id) > 0:
+                            # 向数据库插入数据
+                            self.cursor.execute(
+                                'INSERT INTO test6 (stu_id, stu_class, college, stu_name, peace_score, end_score, each_score, last) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                (stu_id, stu_class, college, stu_name, peace_score, end_score, each_score, last))
+                            self.conn.commit()
+                            wx.MessageBox("添加成功，下方输入学号进行删除和查找", "提示", wx.OK)
+                        else:
+                            wx.MessageBox("学号应该大于0，请重新设置", "错误", wx.OK)
+                else:
+                    wx.MessageBox("学生成绩应该在0~100范围内，请重新输入", "错误", wx.OK)
+            else:
+                wx.MessageBox("学生信息不能有空信息，请重新输入", "错误", wx.OK)
+        else:
+            wx.MessageBox("学号不能为空！", "错误", wx.OK)
+
+
+        # 清空插入框中的数据
+        self.stu_id_text_ctrl.Clear()
+        self.stu_class_text_ctrl.Clear()
+        self.college_text_ctrl.Clear()
+        self.stu_name_text_ctrl.Clear()
+        self.peace_score_text_ctrl.Clear()
+        self.end_score_text_ctrl.Clear()
+        self.each_score_text_ctrl.Clear()
+
+        self.show_data()
+
+
+    def on_exit(self, event):
+        frame.Hide()
+        login.Show()
+
+    def show_data(self):
+        # 从数据库中读取数据
+        self.cursor.execute('SELECT * FROM test6')
+        result = self.cursor.fetchall()
+
+        self.list_ctrl.DeleteAllItems()
+
+        for row in result:
+            # index = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(), str(row[0]))
+            index = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(), row[0])
+            self.list_ctrl.SetItem(index, 1, row[1])
+            self.list_ctrl.SetItem(index, 2, row[2])
+            self.list_ctrl.SetItem(index, 3, row[3])
+            self.list_ctrl.SetItem(index, 4, row[4])
+            self.list_ctrl.SetItem(index, 5, row[5])
+            self.list_ctrl.SetItem(index, 6, row[6])
+            self.list_ctrl.SetItem(index, 7, row[7])
+
+    def on_delete(self, event):
+        # 删除数据库中的学生数据
+        stu_id = self.delete_text_ctrl.GetValue()
+        self.cursor.execute("SELECT stu_id FROM test6 WHERE stu_id=?", (stu_id,))
+        old_stu_id = self.cursor.fetchone()
+        if stu_id == '':
+            wx.MessageBox("学号不能为空", "错误", wx.OK)
+        else:
+            if old_stu_id == None:
+                wx.MessageBox("学号不存在", "错误", wx.OK)
+            else:
+                cursor = self.conn.cursor()
+                cursor.execute("DELETE FROM test6 WHERE stu_id=?", (stu_id,))
+                wx.MessageBox("成功删除该学号及相关信息", "提示", wx.OK)
+                self.conn.commit()
+        self.delete_text_ctrl.Clear()
+
+        self.show_data()
+
+    def on_find(self, event):
+        # 在数据库中查找学生数据
+        stu_id = self.find_text_ctrl.GetValue()
+        self.cursor.execute("SELECT stu_id FROM test6 WHERE stu_id=?", (stu_id,))
+        old_stu_id = self.cursor.fetchone()
+        if stu_id == '':
+            wx.MessageBox("学号不能为空", "错误", wx.OK)
+        else:
+            if old_stu_id is None:
+                wx.MessageBox("学号不存在", "错误", wx.OK)
+            else:
+                wx.MessageBox("查找成功", "提示", wx.OK)
+                self.cursor.execute("SELECT * FROM test6 WHERE stu_id=?", (stu_id,))
+                result = self.cursor.fetchall()
+
+                self.list_ctrl.DeleteAllItems()
+
+                for row in result:
+                    index = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(), row[0])
+                    self.list_ctrl.SetItem(index, 1, row[1])
+                    self.list_ctrl.SetItem(index, 2, row[2])
+                    self.list_ctrl.SetItem(index, 3, row[3])
+                    self.list_ctrl.SetItem(index, 4, row[4])
+                    self.list_ctrl.SetItem(index, 5, row[5])
+                    self.list_ctrl.SetItem(index, 6, row[6])
+        self.find_text_ctrl.Clear()
+
+    def on_refresh(self, event):
+        self.list_ctrl.DeleteAllItems()
+        self.show_data()
+
+    def on_import(self, event):
+        # 弹出文件选择对话框选择要导入的Excel文件
+        dlg = wx.FileDialog(self, "选择一个要导入的Excel文件(注意:excel表需有八列数据才可成功导入)", wildcard="Excel files (*.xls;*.xlsx)|*.xls;*.xlsx")
+        # 如果用户点击对话框的"OK"按钮
+        if dlg.ShowModal() == wx.ID_OK:
+            # 获取用户选择的文件路径
+            filename = dlg.GetPath()
+
+            # 使用xlrd库打开所选文件，返回一个工作簿对象
+            workbook = xlrd.open_workbook(filename)
+            # 获取工作簿中的第一个工作表
+            sheet = workbook.sheet_by_index(0)
+
+            # 遍历工作表中每一行，从第二行开始（第一行通是表头）
+            for row in range(1, sheet.nrows):
+                # 获取当前行的第n列的值
+                stu_id = sheet.cell_value(row, 0)
+                stu_class = sheet.cell_value(row, 1)
+                college = sheet.cell_value(row, 2)
+                stu_name = sheet.cell_value(row, 3)
+                peace_score = sheet.cell_value(row, 4)
+                end_score = sheet.cell_value(row, 5)
+                each_score = sheet.cell_value(row, 6)
+                last = sheet.cell_value(row, 7)
+
+                if stu_id and stu_class and college and stu_name and peace_score and end_score and each_score and last:
+                    try:
+                        # 插入数据
+                        self.cursor.execute(
+                            'INSERT INTO test6 (stu_id, stu_class, college, stu_name, peace_score, end_score, each_score, last) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                            (stu_id, stu_class, college, stu_name, peace_score, end_score, each_score, last))
+                        self.conn.commit()
+                    except sqlite3.IntegrityError:
+                        pass
+
+            wx.MessageBox('导入成功!', '提示', wx.OK | wx.ICON_INFORMATION)
+        self.list_ctrl.DeleteAllItems()
+        self.show_data()
+        # None
+    def on_export(self, event):
+        # 查询表中所有的数据
+        self.cursor.execute("SELECT * FROM test6")
+        export = self.cursor.fetchall()
+
+        # 创建Excel文件并写入数据
+        workbook = xlwt.Workbook()
+        # 在工作簿中添加一个名为'new_excel'的工作表
+        sheet = workbook.add_sheet('new_excel')
+
+        # 写入表头
+        sheet.write(0, 0, '学号')
+        sheet.write(0, 1, '班级')
+        sheet.write(0, 2, '学院')
+        sheet.write(0, 3, '姓名')
+        sheet.write(0, 4, '平时成绩')
+        sheet.write(0, 5, '期末成绩')
+        sheet.write(0, 6, '互评成绩')
+        sheet.write(0, 7, '最后成绩')
+
+        # 写入数据
+        for i, row in enumerate(export):
+            sheet.write(i + 1, 0, row[0])
+            sheet.write(i + 1, 1, row[1])
+            sheet.write(i + 1, 2, row[2])
+            sheet.write(i + 1, 3, row[3])
+            sheet.write(i + 1, 4, row[4])
+            sheet.write(i + 1, 5, row[5])
+            sheet.write(i + 1, 6, row[6])
+            sheet.write(i + 1, 7, row[7])
+
+        # 弹出文件选择对话框选择要保存到的地方
+        dlg = wx.FileDialog(self, "将要导出为", wildcard="Excel files (*.xls;*.xlsx)|*.xls;*.xlsx")
+        # 如果用户点击对话框的"OK"按钮
+        if dlg.ShowModal() == wx.ID_OK:
+            # 获取用户选择的保存文件的路径
+            filename = dlg.GetPath()
+            # 将工作簿保存为Excel文件
+            workbook.save(filename)
+            wx.MessageBox('导出成功!', '提示', wx.OK | wx.ICON_INFORMATION)
+
+    def on_modify1(self, event):
+        # 创建一个对话框输入要修改的学生学号
+        dialog = wx.TextEntryDialog(self, "请输入学生学号(默认2203001):", "修改学号界面", "2203001")
+        if dialog.ShowModal() == wx.ID_OK:
+            self.cursor.execute("SELECT stu_id FROM test6 WHERE stu_id=?", (dialog.GetValue(),))
+            stu_id = self.cursor.fetchone()
+            if dialog.GetValue() == '':
+                wx.MessageBox("学号不能为空", "错误", wx.OK)
+            else:
+                if stu_id == None:
+                    wx.MessageBox("学号不存在", "错误", wx.OK)
+                else:
+                    old_stu_id = dialog.GetValue()
+                    dialog1 = wx.TextEntryDialog(self, "请输入新的学生学号(默认2203001):", "修改学号界面", "2203001")
+                    if dialog1.ShowModal() == wx.ID_OK:
+                        new_stu_id = dialog1.GetValue()
+                        new_stu_ids = []
+                        self.cursor.execute("SELECT stu_id FROM test6 WHERE stu_id=?", (new_stu_id,))
+                        id = self.cursor.fetchone()
+                        if new_stu_id != '':
+                            if id:
+                                new_stu_ids.append(id)
+                                wx.MessageBox("学号重复，请重新设置", "错误", wx.OK)
+                            else:
+                                self.cursor.execute("UPDATE test6 SET stu_id = ? WHERE stu_id = ?", (new_stu_id, old_stu_id))
+                                self.conn.commit()
+                                wx.MessageBox("修改成功！", "提示", wx.OK)
+                        else:
+                            wx.MessageBox("新的学号不能为空", "错误", wx.OK)
+        self.show_data()
+
+        dialog.Destroy()
+        # dialog1.Destroy()
+
+    def on_modify2(self, event):
+        # 创建一个对话框输入要修改的学生的学号
+        dialog = wx.TextEntryDialog(self, "请输入学生学号(默认2203001):", "修改班级界面", "2203001")
+        if dialog.ShowModal() == wx.ID_OK:
+            self.cursor.execute("SELECT stu_id FROM test6 WHERE stu_id=?", (dialog.GetValue(),))
+            stu_id = self.cursor.fetchone()
+            if dialog.GetValue() == '':
+                wx.MessageBox("学号不能为空", "错误", wx.OK)
+            else:
+                if stu_id == None:
+                    wx.MessageBox("学号不存在", "错误", wx.OK)
+                else:
+                    old_stu_id = dialog.GetValue()
+                    dialog2 = wx.TextEntryDialog(self, "请输入新的班级(默认网络2203):", "修改班级界面", "网络2203")
+                    if dialog2.ShowModal() == wx.ID_OK:
+                        new_class = dialog2.GetValue()
+                        if new_class == '':
+                            wx.MessageBox("新的班级不能为空", "错误", wx.OK)
+                        else:
+                            # 更新数据库中的数据
+                            self.cursor.execute("UPDATE test6 SET stu_class = ? WHERE stu_id = ?", (new_class, old_stu_id))
+                            self.conn.commit()
+                            wx.MessageBox("修改成功！", "提示", wx.OK)
+
+        self.show_data()
+
+        dialog.Destroy()
+
+    def on_modify3(self, event):
+        # 创建一个对话框输入要修改的学生的学号
+        dialog = wx.TextEntryDialog(self, "请输入学生学号(默认2203001):", "修改学院界面", "2203001")
+        if dialog.ShowModal() == wx.ID_OK:
+            self.cursor.execute("SELECT stu_id FROM test6 WHERE stu_id=?", (dialog.GetValue(),))
+            stu_id = self.cursor.fetchone()
+            if dialog.GetValue() == '':
+                wx.MessageBox("学号不能为空", "错误", wx.OK)
+            else:
+                if stu_id == None:
+                    wx.MessageBox("学号不存在", "错误", wx.OK)
+                else:
+                    old_stu_id = dialog.GetValue()
+                    dialog2 = wx.TextEntryDialog(self, "请输入新的学院(默认计算机学院):", "修改学院界面", "计算机学院")
+                    if dialog2.ShowModal() == wx.ID_OK:
+                        new_college = dialog2.GetValue()
+                        if new_college == '':
+                            wx.MessageBox("新的学院不能为空", "错误", wx.OK)
+                        else:
+                            # 更新数据库中的数据
+                            self.cursor.execute("UPDATE test6 SET college = ? WHERE stu_id = ?", (new_college, old_stu_id))
+                            self.conn.commit()
+                            wx.MessageBox("修改成功！", "提示", wx.OK)
+
+        self.show_data()
+
+        dialog.Destroy()
+
+    def on_modify4(self, event):
+        # 创建一个对话框输入要修改的学生的学号
+        dialog = wx.TextEntryDialog(self, "请输入学生学号(默认2203001):", "修改姓名界面", "2203001")
+        if dialog.ShowModal() == wx.ID_OK:
+            self.cursor.execute("SELECT stu_id FROM test6 WHERE stu_id=?", (dialog.GetValue(),))
+            stu_id = self.cursor.fetchone()
+            if dialog.GetValue() == '':
+                wx.MessageBox("学号不能为空", "错误", wx.OK)
+            else:
+                if stu_id == None:
+                    wx.MessageBox("学号不存在", "错误", wx.OK)
+                else:
+                    old_stu_id = dialog.GetValue()
+                    dialog2 = wx.TextEntryDialog(self, "请输入新的姓名:", "修改姓名界面")
+                    if dialog2.ShowModal() == wx.ID_OK:
+                        new_name = dialog2.GetValue()
+                        if new_name == '':
+                            wx.MessageBox("新的姓名不能为空", "错误", wx.OK)
+                        else:
+                            # 更新数据库中的数据
+                            self.cursor.execute("UPDATE test6 SET stu_name = ? WHERE stu_id = ?", (new_name, old_stu_id))
+                            self.conn.commit()
+                            wx.MessageBox("修改成功！", "提示", wx.OK)
+
+        self.show_data()
+
+        dialog.Destroy()
+
+    def on_modify5(self, event):
+        # 创建一个对话框输入要修改的学生的学号
+        dialog = wx.TextEntryDialog(self, "请输入学生学号(默认2203001):", "修改平时成绩界面", "2203001")
+        if dialog.ShowModal() == wx.ID_OK:
+            self.cursor.execute("SELECT stu_id FROM test6 WHERE stu_id=?", (dialog.GetValue(),))
+            stu_id = self.cursor.fetchone()
+            if dialog.GetValue() == '':
+                wx.MessageBox("学号不能为空", "错误", wx.OK)
+            else:
+                if stu_id is None:
+                    wx.MessageBox("学号不存在", "错误", wx.OK)
+                else:
+                    old_stu_id = dialog.GetValue()
+                    dialog2 = wx.NumberEntryDialog(self, "请输入数字,范围是0-100", "请输入新的成绩", "修改平时成绩界面", 0, 0, 100)
+                    if dialog2.ShowModal() == wx.ID_OK:
+                        new_peace_score = dialog2.GetValue()
+                        if new_peace_score == '':
+                            wx.MessageBox("新的成绩不能为空", "错误", wx.OK)
+                        else:
+                            # 从数据库中读取数据
+                            self.cursor.execute("SELECT end_score,each_score FROM test6 WHERE stu_id=?", (old_stu_id,))
+                            old_data = self.cursor.fetchone()
+                            old_end_score = old_data[0]
+                            old_each_score = old_data[1]
+                            new_last = float(new_peace_score)*0.2+float(old_each_score)*0.2+float(old_end_score)*0.6
+                            # 更新数据库中的数据
+                            self.cursor.execute("UPDATE test6 SET peace_score = ?,last = ? WHERE stu_id = ?",
+                                                (new_peace_score, new_last, old_stu_id))
+                            self.conn.commit()
+
+                            wx.MessageBox("修改成功！", "提示", wx.OK)
+
+        self.show_data()
+
+        dialog.Destroy()
+
+    def on_modify6(self, event):
+        # 创建一个对话框输入要修改的学生的学号
+        dialog = wx.TextEntryDialog(self, "请输入学生学号(默认2203001):", "修改期末成绩界面", "2203001")
+        if dialog.ShowModal() == wx.ID_OK:
+            self.cursor.execute("SELECT stu_id FROM test6 WHERE stu_id=?", (dialog.GetValue(),))
+            stu_id = self.cursor.fetchone()
+            if dialog.GetValue() == '':
+                wx.MessageBox("学号不能为空", "错误", wx.OK)
+            else:
+                if stu_id is None:
+                    wx.MessageBox("学号不存在", "错误", wx.OK)
+                else:
+                    old_stu_id = dialog.GetValue()
+                    dialog2 = wx.NumberEntryDialog(self, "请输入数字,范围是0-100", "请输入新的成绩", "修改期末成绩界面", 0, 0, 100)
+                    if dialog2.ShowModal() == wx.ID_OK:
+                        new_end_score = dialog2.GetValue()
+                        if new_end_score == '':
+                            wx.MessageBox("新的成绩不能为空", "错误", wx.OK)
+                        else:
+                            # 从数据库中读取数据
+                            self.cursor.execute("SELECT peace_score,each_score FROM test6 WHERE stu_id=?",
+                                                (old_stu_id,))
+                            old_data = self.cursor.fetchone()
+                            old_peace_score = old_data[0]
+                            old_each_score = old_data[1]
+                            new_last = float(old_peace_score)*0.2+float(old_each_score)*0.2+float(new_end_score)*0.6
+                            # 更新数据库中的数据
+                            self.cursor.execute("UPDATE test6 SET end_score = ?,last = ? WHERE stu_id = ?",
+                                                (new_end_score, new_last, old_stu_id))
+                            self.conn.commit()
+                            wx.MessageBox("修改成功！", "提示", wx.OK)
+
+        self.show_data()
+
+        dialog.Destroy()
+
+    def on_modify7(self, event):
+        # 创建一个对话框输入要修改的学生的学号
+        dialog = wx.TextEntryDialog(self, "请输入学生学号(默认2203001):", "修改互评成绩界面", "2203001")
+        if dialog.ShowModal() == wx.ID_OK:
+            self.cursor.execute("SELECT stu_id FROM test6 WHERE stu_id=?", (dialog.GetValue(),))
+            stu_id = self.cursor.fetchone()
+            if dialog.GetValue() == '':
+                wx.MessageBox("学号不能为空", "错误", wx.OK)
+            else:
+                if stu_id is None:
+                    wx.MessageBox("学号不存在", "错误", wx.OK)
+                else:
+                    old_stu_id = dialog.GetValue()
+                    dialog2 = wx.NumberEntryDialog(self, "请输入数字,范围是0-100", "请输入新的成绩", "修改互评成绩界面", 0, 0, 100)
+                    if dialog2.ShowModal() == wx.ID_OK:
+                        new_each_score = dialog2.GetValue()
+                        if new_each_score == '':
+                            wx.MessageBox("新的成绩不能为空", "错误", wx.OK)
+                        else:
+                            # 从数据库中读取数据
+                            self.cursor.execute("SELECT peace_score,end_score FROM test6 WHERE stu_id=?",
+                                                (old_stu_id,))
+                            old_data = self.cursor.fetchone()
+                            old_peace_score = old_data[0]
+                            old_end_score = old_data[1]
+                            new_last = float(old_peace_score)*0.2+float(new_each_score)*0.2+float(old_end_score)*0.6
+                            # 更新数据库中的数据
+                            self.cursor.execute("UPDATE test6 SET each_score = ?,last = ? WHERE stu_id = ?",
+                                                (new_each_score, new_last, old_stu_id))
+                            self.conn.commit()
+                            wx.MessageBox("修改成功！", "提示", wx.OK)
+
+        self.show_data()
+
+        dialog.Destroy()
+
+    def __del__(self):
+        # 关闭数据库连接
+        self.cursor.close()
+        self.conn.close()
+
+        # self.list_ctrl.DeleteAllItems()
+
+# class Modify(wx.Frame):
+#     def __init__(self):
+#         super().__init__(None, title="修改", size=(600, 700))
+#
+#         self.panel = wx.Panel(self)
+#
+
+if __name__ == "__main__":
+    app = wx.App()
+    login = LoginWindow(parent=None, id=-1)
+    # login.Show()  # 显示登录界面
+    register = Register()
+    # register.Show()
+    frame = MyFrame()
+    # frame.Show()
+    app.MainLoop()
